@@ -7,12 +7,17 @@ import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Handler;
 import android.provider.MediaStore;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.TextView;
+
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -20,6 +25,9 @@ public class MainActivity extends AppCompatActivity {
     Button mForwardButton;
     Button mBackButton;
     Cursor cursor;
+    Timer mTimer;
+
+    Handler mHandler = new Handler();
 
     private static final int PERMISSIONS_REQUEST_CODE = 100;
 
@@ -31,6 +39,38 @@ public class MainActivity extends AppCompatActivity {
         mStartPauseButton = findViewById(R.id.button1);
         mForwardButton = findViewById(R.id.button2);
         mBackButton = findViewById(R.id.button3);
+
+        mStartPauseButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if(mTimer == null) {
+                    TextView textView = findViewById(R.id.button1);
+                    textView.setText("停止");
+                    mForwardButton.setEnabled(false);
+                    mBackButton.setEnabled(false);
+                    mTimer = new Timer();
+                    mTimer.schedule(new TimerTask() {
+                        @Override
+                        public void run() {
+                            mHandler.post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    getNextInfo();
+                                }
+                            });
+                        }
+                    },2000, 2000);
+
+                }else{
+                    TextView textView = findViewById(R.id.button1);
+                    textView.setText("再生");
+                    mForwardButton.setEnabled(true);
+                    mBackButton.setEnabled(true);
+                    mTimer.cancel();
+                    mTimer = null;
+                }
+            }
+        });
 
         mForwardButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -89,41 +129,42 @@ public class MainActivity extends AppCompatActivity {
             imageVIew.setImageURI(imageUri);
     }
     private void getNextInfo() {
-        ContentResolver resolver = getContentResolver();
-        cursor = resolver.query(
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                null,
-                null,
-                null,
-                null
-        );
-
-        cursor.moveToNext();
+        if(cursor.moveToNext()) {
         int fieldIndex = cursor.getColumnIndex(MediaStore.Images.Media._ID);
         Long id = cursor.getLong(fieldIndex);
         Uri imageUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id);
 
         ImageView imageVIew = findViewById(R.id.imageView);
         imageVIew.setImageURI(imageUri);
+        }else {
+            cursor.moveToFirst();
+            int fieldIndex = cursor.getColumnIndex(MediaStore.Images.Media._ID);
+            Long id = cursor.getLong(fieldIndex);
+            Uri imageUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id);
+
+            ImageView imageVIew = findViewById(R.id.imageView);
+            imageVIew.setImageURI(imageUri);
+        }
     }
 
     private void getPreviousInfo() {
-        ContentResolver resolver = getContentResolver();
-        cursor = resolver.query(
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                null,
-                null,
-                null,
-                null
-        );
 
-        cursor.moveToPrevious();
+        if(cursor.moveToPrevious()) {
         int fieldIndex = cursor.getColumnIndex(MediaStore.Images.Media._ID);
         Long id = cursor.getLong(fieldIndex);
         Uri imageUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id);
 
         ImageView imageVIew = findViewById(R.id.imageView);
         imageVIew.setImageURI(imageUri);
+        }else {
+            cursor.moveToLast();
+            int fieldIndex = cursor.getColumnIndex(MediaStore.Images.Media._ID);
+            Long id = cursor.getLong(fieldIndex);
+            Uri imageUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id);
+
+            ImageView imageVIew = findViewById(R.id.imageView);
+            imageVIew.setImageURI(imageUri);
+        }
     }
 
 
