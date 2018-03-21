@@ -6,6 +6,7 @@ import android.content.ContentUris;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
+import android.database.StaleDataException;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
@@ -29,6 +30,7 @@ public class MainActivity extends AppCompatActivity  {
     Cursor cursor;
     Timer mTimer;
 
+
     Handler mHandler = new Handler();
 
     private static final int PERMISSIONS_REQUEST_CODE = 100;
@@ -47,32 +49,43 @@ public class MainActivity extends AppCompatActivity  {
             mStartPauseButton.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
-                    if (mTimer == null) {
-                        TextView textView = findViewById(R.id.button1);
-                        textView.setText("停止");
-                        mForwardButton.setEnabled(false);
-                        mBackButton.setEnabled(false);
-                        mTimer = new Timer();
-                        mTimer.schedule(new TimerTask() {
-                            @Override
-                            public void run() {
-                                mHandler.post(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        getNextInfo();
-                                    }
-                                });
-                            }
-                        }, 2000, 2000);
+                    int p = getPackageManager().checkPermission(Manifest.permission.READ_EXTERNAL_STORAGE, getPackageName());
+                    if(p == PackageManager.PERMISSION_GRANTED) {
 
-                    } else {
-                        TextView textView = findViewById(R.id.button1);
-                        textView.setText("再生");
-                        mForwardButton.setEnabled(true);
-                        mBackButton.setEnabled(true);
-                        mTimer.cancel();
-                        mTimer = null;
+                        if (mTimer == null) {
+                            TextView textView = findViewById(R.id.button1);
+                            textView.setText("停止");
+                            mForwardButton.setEnabled(false);
+                            mBackButton.setEnabled(false);
+                            mTimer = new Timer();
+                            mTimer.schedule(new TimerTask() {
+                                @Override
+                                public void run() {
+                                    mHandler.post(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            getNextInfo();
+                                        }
+                                    });
+                                }
+                            }, 2000, 2000);
+                        }
+                        else {
+                            TextView textView = findViewById(R.id.button1);
+                            textView.setText("再生");
+                            mForwardButton.setEnabled(true);
+                            mBackButton.setEnabled(true);
+                            mTimer.cancel();
+                            mTimer = null;
+                        }
                     }
+                    if(p == PackageManager.PERMISSION_DENIED) {
+                        showAlertDialog();
+
+                    }
+
+
+
                 }
             });
 
@@ -91,16 +104,16 @@ public class MainActivity extends AppCompatActivity  {
             });
 
 
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
-                    getContentsInfo();
-                } else {
-                    requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, PERMISSIONS_REQUEST_CODE);
-                }
-            } else {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
                 getContentsInfo();
+            } else {
+                requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, PERMISSIONS_REQUEST_CODE);
             }
+        } else {
+            getContentsInfo();
+        }
+
 
         }
 
@@ -124,7 +137,7 @@ public class MainActivity extends AppCompatActivity  {
 
     private void getContentsInfo() {
 
-    try{
+
         ContentResolver resolver = getContentResolver();
         cursor = resolver.query(
                 MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
@@ -142,9 +155,7 @@ public class MainActivity extends AppCompatActivity  {
         ImageView imageVIew = findViewById(R.id.imageView);
         imageVIew.setImageURI(imageUri);
 
-    } catch(NullPointerException e) {
-        showAlertDialog();
-    }}
+}
 
     private void getNextInfo() {
 
@@ -167,6 +178,8 @@ public class MainActivity extends AppCompatActivity  {
             }
         } catch (NullPointerException e) {
             showAlertDialog();
+        } catch (StaleDataException e) {
+
         }
     }
 
@@ -195,12 +208,6 @@ public class MainActivity extends AppCompatActivity  {
         }
     }
 
-    @Override
-    protected void onStop() {
-        super.onStop();
-        cursor.close();
-    }
-
 
     private void showAlertDialog() {
         AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(this);
@@ -216,6 +223,12 @@ public class MainActivity extends AppCompatActivity  {
 
         AlertDialog alertDialog = alertDialogBuilder.create();
         alertDialog.show();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        cursor.close();
     }
 
 }
